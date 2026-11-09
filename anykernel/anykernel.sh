@@ -4,7 +4,7 @@
 ### AnyKernel setup
 # global properties
 properties() { '
-kernel.string=KernelSU-Next (legacy) for Samsung Galaxy A42 5G
+kernel.string=a42tweak v1.0.1 - KernelSU-Next (legacy) for Samsung Galaxy A42 5G
 do.devicecheck=1
 do.modules=0
 do.systemless=1
