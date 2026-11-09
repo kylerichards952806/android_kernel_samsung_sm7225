@@ -526,34 +526,15 @@ append_module_rc:
 	return ret;
 }
 
-static bool check_init_path(char *dpath)
-{
-	const char *valid_paths[] = { "/system/etc/init/hw/init.rc",
-				      "/init.rc" };
-	bool path_match = false;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(valid_paths); i++) {
-		if (strcmp(dpath, valid_paths[i]) == 0) {
-			path_match = true;
-			break;
-		}
-	}
-
-	if (!path_match) {
-		pr_err("vfs_read: couldn't determine init.rc path for %s\n",
-		       dpath);
-		return false;
-	}
-
-	pr_info("vfs_read: got init.rc path: %s\n", dpath);
-	return true;
-}
-
 static bool is_init_rc(struct file *fp)
 {
+    char path[256];
+    char *dpath;
+    const char *short_name;
+    size_t len;
+
     if (strcmp(current->comm, "init")) {
-        // we are only interest in `init` process
+        // we are only interested in the `init` process
         return false;
     }
 
@@ -561,19 +542,20 @@ static bool is_init_rc(struct file *fp)
         return false;
     }
 
-    const char *short_name = fp->f_path.dentry->d_name.name;
-    if (strcmp(short_name, "init.rc")) {
-        // we are only interest `init.rc` file name file
+    short_name = fp->f_path.dentry->d_name.name;
+    len = strlen(short_name);
+    if (len < 4 || strcmp(short_name + len - 3, ".rc")) {
+        // init reads both init.rc and its companion .rc files
         return false;
     }
-    char path[256];
-    char *dpath = d_path(&fp->f_path, path, sizeof(path));
 
+    dpath = d_path(&fp->f_path, path, sizeof(path));
     if (IS_ERR(dpath)) {
         return false;
     }
 
-    if (!!strcmp(dpath, "/init.rc") && !!strcmp(dpath, "/system/etc/init/hw/init.rc")) {
+    if (strcmp(dpath, "/init.rc") &&
+        strncmp(dpath, "/system/etc/init/", sizeof("/system/etc/init/") - 1)) {
         return false;
     }
 
