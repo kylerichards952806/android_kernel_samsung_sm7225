@@ -1408,7 +1408,6 @@ int gsi_write_device_scratch(unsigned long dev_hdl,
 
 	return GSI_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(gsi_write_device_scratch);
 
 int gsi_deregister_device(unsigned long dev_hdl, bool force)
 {
@@ -1827,7 +1826,6 @@ int gsi_write_evt_ring_scratch(unsigned long evt_ring_hdl,
 
 	return GSI_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(gsi_write_evt_ring_scratch);
 
 int gsi_dealloc_evt_ring(unsigned long evt_ring_hdl)
 {
@@ -2595,7 +2593,6 @@ int gsi_write_channel_scratch3_reg(unsigned long chan_hdl,
 	mutex_unlock(&ctx->mlock);
 	return GSI_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(gsi_write_channel_scratch3_reg);
 
 int gsi_write_channel_scratch2_reg(unsigned long chan_hdl,
 		union __packed gsi_wdi2_channel_scratch2_reg val)
@@ -2627,7 +2624,6 @@ int gsi_write_channel_scratch2_reg(unsigned long chan_hdl,
 	mutex_unlock(&ctx->mlock);
 	return GSI_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(gsi_write_channel_scratch2_reg);
 
 static void __gsi_read_channel_scratch(unsigned long chan_hdl,
 		union __packed gsi_channel_scratch * val)
@@ -2802,7 +2798,6 @@ int gsi_update_mhi_channel_scratch(unsigned long chan_hdl,
 
 	return GSI_STATUS_SUCCESS;
 }
-EXPORT_SYMBOL(gsi_update_mhi_channel_scratch);
 
 int gsi_query_channel_db_addr(unsigned long chan_hdl,
 		uint32_t *db_addr_wp_lsb, uint32_t *db_addr_wp_msb)
