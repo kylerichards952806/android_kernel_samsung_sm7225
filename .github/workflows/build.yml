@@ -9,14 +9,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: kernel-${{ github.ref }}
-  cancel-in-progress: true
+  group: kernel-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   build:
-    name: Build Image + AnyKernel3 zip
+    name: Build Image + AnyKernel3 zip (${{ matrix.variant }})
     runs-on: ubuntu-22.04
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [normal, enforcing]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,6 +48,16 @@ jobs:
           make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 LLVM_IAS=1 \
             vendor/a42xq_eur_open_defconfig
 
+      - name: Apply SELinux enforcing variant
+        if: matrix.variant == 'enforcing'
+        run: |
+          scripts/config --file out/.config -e SECURITY_SELINUX_BOOTPARAM
+          scripts/config --file out/.config --set-val SECURITY_SELINUX_BOOTPARAM_VALUE 1
+          sed -i 's|^CONFIG_LOCALVERSION=.*|CONFIG_LOCALVERSION="-kyler084-a42tweak-v1.0.1-enforcing"|' out/.config
+          make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 LLVM_IAS=1 \
+            olddefconfig
+          grep -E "^CONFIG_SECURITY_SELINUX(_BOOTPARAM|_BOOTPARAM_VALUE)?=|^CONFIG_LOCALVERSION=" out/.config
+
       - name: Verify KernelSU-Next config
         run: |
           grep -E "^CONFIG_KSU=|^CONFIG_KSU_.*=y" out/.config
@@ -56,18 +70,20 @@ jobs:
       - name: Package AnyKernel3 zip
         run: |
           test -f out/arch/arm64/boot/Image
+          suffix=""
+          if [ "${{ matrix.variant }}" = "enforcing" ]; then suffix="-enforcing"; fi
           git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git "$RUNNER_TEMP/ak3"
           git -C "$RUNNER_TEMP/ak3" checkout 41f04bdb4ee3
           cp anykernel/anykernel.sh "$RUNNER_TEMP/ak3/anykernel.sh"
           cp out/arch/arm64/boot/Image "$RUNNER_TEMP/ak3/Image"
           mkdir -p "$RUNNER_TEMP/out"
           ( cd "$RUNNER_TEMP/ak3" && \
-            zip -r9 "$RUNNER_TEMP/out/a42xq-KernelSU-Next-${GITHUB_RUN_NUMBER}.zip" . -x ".git/*" )
+            zip -r9 "$RUNNER_TEMP/out/a42xq-KernelSU-Next-${{ github.run_number }}${suffix}.zip" . -x ".git/*" )
           ls -l "$RUNNER_TEMP/out"
 
       - name: Upload TWRP flashable zip
         uses: actions/upload-artifact@v4
         with:
-          name: a42xq-KernelSU-Next-${{ github.run_number }}
+          name: a42xq-KernelSU-Next-${{ github.run_number }}-${{ matrix.variant }}
           path: ${{ runner.temp }}/out/*.zip
           if-no-files-found: error
