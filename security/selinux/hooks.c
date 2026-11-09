@@ -112,11 +112,7 @@ static atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
 static DEFINE_MUTEX(selinux_sdcardfs_lock);
 // ] SEC_SELINUX_PORTING_COMMON
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
-#ifdef CONFIG_SECURITY_SELINUX_ENFORCE_BOOT
-static int selinux_enforcing_boot __initdata = 1;
-#else
 static int selinux_enforcing_boot __initdata;
-#endif
 
 static int __init enforcing_setup(char *str)
 {
@@ -124,7 +120,7 @@ static int __init enforcing_setup(char *str)
 	if (!kstrtoul(str, 0, &enforcing))
 	{
 // [ SEC_SELINUX_PORTING_COMMON
-#if defined(CONFIG_ALWAYS_ENFORCE) || defined(CONFIG_SECURITY_SELINUX_ENFORCE_BOOT)
+#ifdef CONFIG_ALWAYS_ENFORCE
 		selinux_enforcing_boot = 1;
 #else
 		selinux_enforcing_boot = enforcing ? 1 : 0;
