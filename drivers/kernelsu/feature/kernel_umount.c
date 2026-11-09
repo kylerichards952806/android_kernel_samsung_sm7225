@@ -9,7 +9,7 @@
 #include <linux/path.h>
 #include <linux/printk.h>
 #include <linux/types.h>
-#ifndef KSU_HAS_PATH_UMOUNT
+#if 1
 #include <linux/syscalls.h>
 #endif
 
