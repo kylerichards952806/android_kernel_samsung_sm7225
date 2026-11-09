@@ -9,6 +9,7 @@
 #include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
+#include <linux/stat.h>
 #include <asm/ptrace.h>
 #if defined(__aarch64__)
 #include <asm/memory.h>
@@ -30,6 +31,8 @@
 #include "feature/sucompat.h"
 #include "feature/adb_root.h"
 #include "runtime/ksud.h"
+
+void ksu_handle_newfstat_ret(unsigned int *fd, struct stat __user **statbuf_ptr);
 #include "supercall/supercall.h"
 
 // The pt_regs-based syscall ABI (__arm64_sys_*/__x64_sys_*) exists since 4.17
@@ -215,10 +218,34 @@ static long ksu_sth_newfstatat(const struct pt_regs *regs)
 	const char __user **filename_user =
 		(const char __user **)&PT_REGS_PARM2(regs);
 	int *flags = (int *)&PT_REGS_SYSCALL_PARM4(regs);
+	int flags_val = *flags;
+	long ret;
 
 	ksu_handle_stat(dfd, filename_user, flags);
 
-	return ksu_sth_call_orig(__NR_newfstatat, regs);
+	ret = ksu_sth_call_orig(__NR_newfstatat, regs);
+	if (ret == 0 && (flags_val & AT_EMPTY_PATH)) {
+		unsigned int fd = (unsigned int)*dfd;
+		struct stat __user *statbuf =
+			(struct stat __user *)PT_REGS_PARM3(regs);
+
+		ksu_handle_newfstat_ret(&fd, &statbuf);
+	}
+	return ret;
+}
+#endif
+
+#ifdef __NR_fstat
+static long ksu_sth_fstat(const struct pt_regs *regs)
+{
+	unsigned int fd = (unsigned int)PT_REGS_PARM1(regs);
+	struct stat __user *statbuf =
+		(struct stat __user *)PT_REGS_PARM2(regs);
+	long ret = ksu_sth_call_orig(__NR_fstat, regs);
+
+	if (ret == 0)
+		ksu_handle_newfstat_ret(&fd, &statbuf);
+	return ret;
 }
 #endif
 
@@ -262,6 +289,9 @@ void __init ksu_syscall_table_hook_init(void)
 #endif
 #ifdef __NR_newfstatat
 		{ __NR_newfstatat, ksu_sth_newfstatat },
+#endif
+#ifdef __NR_fstat
+		{ __NR_fstat, ksu_sth_fstat },
 #endif
 #ifdef __NR_read
 		{ __NR_read, ksu_sth_read },
