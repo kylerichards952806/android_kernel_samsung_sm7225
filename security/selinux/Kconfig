@@ -37,15 +37,6 @@ config SECURITY_SELINUX_BOOTPARAM_VALUE
 
 	  If you are unsure how to answer this question, answer 1.
 
-config SECURITY_SELINUX_ENFORCE_BOOT
-	bool "NSA SELinux enforcing at boot"
-	depends on SECURITY_SELINUX
-	default n
-	help
-	  Start SELinux in enforcing mode regardless of the enforcing= kernel
-	  parameter.  Runtime changes through /sys/fs/selinux/enforce remain
-	  possible while developer mode is enabled.
-
 config SECURITY_SELINUX_DISABLE
 	bool "NSA SELinux runtime disable"
 	depends on SECURITY_SELINUX

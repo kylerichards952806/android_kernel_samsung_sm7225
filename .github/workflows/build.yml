@@ -53,13 +53,11 @@ jobs:
         run: |
           scripts/config --file out/.config -e SECURITY_SELINUX_BOOTPARAM
           scripts/config --file out/.config --set-val SECURITY_SELINUX_BOOTPARAM_VALUE 1
-          scripts/config --file out/.config -e SECURITY_SELINUX_ENFORCE_BOOT
           sed -i 's|^CONFIG_LOCALVERSION="\(.*\)"|CONFIG_LOCALVERSION="\1-enforcing"|' out/.config
           make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 LLVM_IAS=1 \
             olddefconfig
-          grep -E "^CONFIG_SECURITY_SELINUX(_BOOTPARAM|_BOOTPARAM_VALUE|_ENFORCE_BOOT)?=|^CONFIG_LOCALVERSION=" out/.config
+          grep -E "^CONFIG_SECURITY_SELINUX(_BOOTPARAM|_BOOTPARAM_VALUE)?=|^CONFIG_LOCALVERSION=" out/.config
           grep -q '^CONFIG_LOCALVERSION=".*-enforcing"$' out/.config
-          grep -q '^CONFIG_SECURITY_SELINUX_ENFORCE_BOOT=y$' out/.config
 
       - name: Verify KernelSU-Next config
         run: |
