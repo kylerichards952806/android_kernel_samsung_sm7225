@@ -1,0 +1,73 @@
+name: Build kernel (a42xq)
+
+on:
+  push:
+    branches: [ 'lineage-*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kernel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Image + AnyKernel3 zip
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ca-certificates cpio curl flex git \
+            gcc-aarch64-linux-gnu libelf-dev libssl-dev python3 rsync unzip zip
+
+      - name: Set up clang r416183b
+        run: |
+          mkdir -p "$RUNNER_TEMP/toolchain"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/clang.tar.gz" \
+            "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-12.0.0_r21/clang-r416183b.tar.gz"
+          tar -xzf "$RUNNER_TEMP/clang.tar.gz" -C "$RUNNER_TEMP/toolchain"
+          echo "$RUNNER_TEMP/toolchain/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/toolchain/bin/clang" --version
+
+      - name: Configure kernel
+        run: |
+          make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 LLVM_IAS=1 \
+            vendor/a42xq_eur_open_defconfig
+
+      - name: Verify KernelSU-Next config
+        run: |
+          grep -E "^CONFIG_KSU=|^CONFIG_KSU_.*=y" out/.config
+
+      - name: Build kernel Image
+        run: |
+          make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 LLVM_IAS=1 \
+            -j"$(nproc)" Image
+
+      - name: Package AnyKernel3 zip
+        run: |
+          test -f out/arch/arm64/boot/Image
+          git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git "$RUNNER_TEMP/ak3"
+          git -C "$RUNNER_TEMP/ak3" checkout 41f04bdb4ee3
+          cp anykernel/anykernel.sh "$RUNNER_TEMP/ak3/anykernel.sh"
+          cp out/arch/arm64/boot/Image "$RUNNER_TEMP/ak3/Image"
+          mkdir -p "$RUNNER_TEMP/out"
+          ( cd "$RUNNER_TEMP/ak3" && \
+            zip -r9 "$RUNNER_TEMP/out/a42xq-KernelSU-Next-${GITHUB_RUN_NUMBER}.zip" . -x ".git/*" )
+          ls -l "$RUNNER_TEMP/out"
+
+      - name: Upload TWRP flashable zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: a42xq-KernelSU-Next-${{ github.run_number }}
+          path: ${{ runner.temp }}/out/*.zip
+          if-no-files-found: error
